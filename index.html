@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Financial Literacy Agent</title>
 
-  <!-- MSAL -->
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
-
-  <!-- WebChat (for UI shell, optional styling later) -->
   <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
 
   <style>
-    body { margin: 0; font-family: Arial; background: #f4f6f9; }
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #f4f6f9;
+    }
 
     header {
       background: #1f3a5f;
@@ -61,12 +62,15 @@
 <div id="chat"></div>
 
 <script>
-  // ✅ CONFIG (fill these)
   const msalConfig = {
     auth: {
-      clientId: "YOUR_CLIENT_ID",
-      authority: "https://login.microsoftonline.com/YOUR_TENANT_ID",
-      redirectUri: window.location.origin
+      clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
+      authority: "https://login.microsoftonline.com/b0402c41-9027-486c-953f-d09da264a280",
+      redirectUri: "https://qualityinformatics.github.io/financial-agent-web/"
+    },
+    cache: {
+      cacheLocation: "localStorage",
+      storeAuthStateInCookie: true
     }
   };
 
@@ -78,24 +82,20 @@
         scopes: ["User.Read"]
       });
 
-      // ✅ UI updates
       document.getElementById("loginBtn").style.display = "none";
       document.getElementById("chat").style.display = "block";
       document.getElementById("userInfo").innerHTML =
         "Signed in: " + login.account.username;
 
-      startAgent();
+      startChat();
 
     } catch (err) {
-      console.error(err);
-      alert("Login failed");
+      console.error("LOGIN ERROR:", err);
+      alert("Login failed - check console");
     }
   };
 
-  function startAgent() {
-
-    // ✅ PLACEHOLDER: replace with Agents SDK connection
-    // IMPORTANT → you will swap this section next
+  function startChat() {
 
     const styleOptions = {
       bubbleBackground: "#e6f0ff",
@@ -103,10 +103,9 @@
       bubbleFromUserTextColor: "white"
     };
 
-    // TEMP mock WebChat (replace with real token later)
     window.WebChat.renderWebChat({
       directLine: window.WebChat.createDirectLine({
-        secret: "YOUR_PLACEHOLDER_SECRET"
+        secret: "PLACEHOLDER"
       }),
       styleOptions
     }, document.getElementById("chat"));
