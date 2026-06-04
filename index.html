@@ -99,17 +99,34 @@
     }
   };
 
-  function startChat() {
+function startChat() {
 
-    const endpoint = "https://defaultb0402c419027486c953fd09da264a2.80.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr441_financialLiteracyTrainer/conversations?api-version=2022-03-01-preview";
+  const endpoint = "https://defaultb0402c419027486c953fd09da264a2.80.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr441_financialLiteracyTrainer/conversations?api-version=2022-03-01-preview";
 
-    // ✅ Now this works because script is loaded
-    const client = new Microsoft.Agents.WebChatClient({
-      endpoint: endpoint
+  fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    credentials: "include" // ✅ THIS is critical (uses Entra session)
+  })
+  .then(res => res.json())
+  .then(data => {
+
+    const directLine = window.WebChat.createDirectLine({
+      token: data.token
     });
 
-    client.render(document.getElementById("chat"));
-  }
+    window.WebChat.renderWebChat({
+      directLine: directLine
+    }, document.getElementById("chat"));
+
+  })
+  .catch(err => {
+    console.error("CHAT CONNECTION ERROR:", err);
+    alert("Chat failed to load");
+  });
+}
 </script>
 
 </body>
