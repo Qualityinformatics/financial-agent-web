@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Financial Literacy Agent</title>
 
+  <!-- ✅ MSAL -->
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
-  <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
+
+  <!-- ✅ REQUIRED: Agents SDK -->
+  <script src="https://unpkg.com/@microsoft/agents-webchat"></script>
 
   <style>
     body {
@@ -36,7 +39,7 @@
 
     #userInfo {
       text-align: center;
-      font-size: 12px;
+      font-size: 14px;
       margin-bottom: 10px;
     }
 
@@ -62,6 +65,7 @@
 <div id="chat"></div>
 
 <script>
+  // ✅ MSAL CONFIG (corrected)
   const msalConfig = {
     auth: {
       clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
@@ -95,20 +99,16 @@
     }
   };
 
+  // ✅ FINAL FIX: use Agents SDK (NOT DirectLine)
   function startChat() {
 
-    const styleOptions = {
-      bubbleBackground: "#e6f0ff",
-      bubbleFromUserBackground: "#0078d4",
-      bubbleFromUserTextColor: "white"
-    };
+    const endpoint = "https://defaultb0402c419027486c953fd09da264a2.80.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr441_financialLiteracyTrainer/conversations?api-version=2022-03-01-preview";
 
-    window.WebChat.renderWebChat({
-      directLine: window.WebChat.createDirectLine({
-        secret: "PLACEHOLDER"
-      }),
-      styleOptions
-    }, document.getElementById("chat"));
+    const client = new Microsoft.Agents.WebChatClient({
+      endpoint: endpoint
+    });
+
+    client.render(document.getElementById("chat"));
   }
 </script>
 
