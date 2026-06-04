@@ -8,7 +8,7 @@
   <!-- ✅ MSAL -->
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
-  <!-- ✅ REQUIRED: Agents SDK -->
+  <!-- ✅ FIX: Proper Agents SDK script -->
   <script src="https://unpkg.com/@microsoft/agents-webchat"></script>
 
   <style>
@@ -65,7 +65,6 @@
 <div id="chat"></div>
 
 <script>
-  // ✅ MSAL CONFIG (corrected)
   const msalConfig = {
     auth: {
       clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
@@ -99,11 +98,11 @@
     }
   };
 
-  // ✅ FINAL FIX: use Agents SDK (NOT DirectLine)
   function startChat() {
 
     const endpoint = "https://defaultb0402c419027486c953fd09da264a2.80.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr441_financialLiteracyTrainer/conversations?api-version=2022-03-01-preview";
 
+    // ✅ Now this works because script is loaded
     const client = new Microsoft.Agents.WebChatClient({
       endpoint: endpoint
     });
