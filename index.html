@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -8,13 +8,13 @@
   <!-- MSAL -->
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
-  <!-- Bot Framework Web Chat -->
+  <!-- WebChat -->
   <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       background: #f4f6f9;
     }
 
@@ -24,7 +24,6 @@
       padding: 15px;
       text-align: center;
       font-size: 20px;
-      font-weight: 600;
     }
 
     #loginBtn {
@@ -39,125 +38,106 @@
       cursor: pointer;
     }
 
-    #loginBtn:hover {
-      background: #106ebe;
-    }
-
-    #userInfo {
-      text-align: center;
-      font-size: 14px;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
     #chat {
       display: none;
-      height: calc(100vh - 140px);
+      height: calc(100vh - 120px);
       margin: 10px;
       border-radius: 10px;
-      overflow: hidden;
       background: white;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
   </style>
 </head>
+
 <body>
 
-  <header>Financial Literacy Assistant</header>
+<header>Financial Literacy Assistant</header>
 
-  <button id="loginBtn">Sign in with Microsoft</button>
-  <div id="userInfo"></div>
-  <div id="chat"></div>
+<button id="loginBtn">Sign in with Microsoft</button>
+<div id="chat"></div>
 
-  <script>
-    const msalConfig = {
-      auth: {
-        clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
-        authority: "https://login.microsoftonline.com/b0402c41-9027-486c-953f-d09da264a280",
-        redirectUri: "https://qualityinformatics.github.io/financial-agent-web/"
-      },
-      cache: {
-        cacheLocation: "localStorage",
-        storeAuthStateInCookie: true
-      }
-    };
+<script>
+  // ✅ YOUR DATAVERSE BASE URL
+  const DATAVERSE_BASE_URL = "https://org6c746ebe.api.crm.dynamics.com";
 
-    const msalInstance = new msal.PublicClientApplication(msalConfig);
+  const msalConfig = {
+    auth: {
+      clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
+      authority: "https://login.microsoftonline.com/b0402c41-9027-486c-953f-d09da264a280",
+      redirectUri: "https://qualityinformatics.github.io/financial-agent-web/"
+    },
+    cache: {
+      cacheLocation: "localStorage",
+      storeAuthStateInCookie: true
+    }
+  };
 
-    async function getAccessToken() {
-      const account = msalInstance.getAllAccounts()[0];
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-      const result = await msalInstance.acquireTokenSilent({
-        scopes: ["User.Read"],
-        account: account
+  // ✅ CORRECT TOKEN (DATAVERSE, NOT GRAPH)
+  async function getAccessToken() {
+    const account = msalInstance.getAllAccounts()[0];
+
+    const result = await msalInstance.acquireTokenSilent({
+      scopes: [`${DATAVERSE_BASE_URL}/.default`],
+      account: account
+    });
+
+    return result.accessToken;
+  }
+
+  // ✅ CHAT CONNECTION (via Azure Function)
+  async function startChat() {
+    try {
+
+      const tokenResponse = await fetch(
+        "https://getcopilottoken-dteebkhxd3ahhdhw.centralus-01.azurewebsites.net/api/getCopilotToken",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + await getAccessToken()
+          }
+        }
+      );
+
+      const data = await tokenResponse.json();
+
+      const directLine = window.WebChat.createDirectLine({
+        token: data.token
       });
 
-      return result.accessToken;
+      window.WebChat.renderWebChat({
+        directLine: directLine
+      }, document.getElementById("chat"));
+
+    } catch (err) {
+      console.error("CHAT ERROR:", err);
+      alert("Chat failed");
     }
+  }
 
-    async function startChat() {
-      try {
-        const tokenResponse = await fetch(
-          "https://getcopilottoken-dteebkhxd3ahhdhw.centralus-01.azurewebsites.net/api/getCopilotToken",
-          {
-            method: "POST",
-            headers: {
-              "Authorization": "Bearer " + await getAccessToken()
-            }
-          }
-        );
+  // ✅ LOGIN FLOW WITH CORRECT SCOPE
+  document.getElementById("loginBtn").onclick = async () => {
+    try {
 
-        if (!tokenResponse.ok) {
-          throw new Error(`Function call failed: ${tokenResponse.status} ${tokenResponse.statusText}`);
-        }
+      const login = await msalInstance.loginPopup({
+        scopes: [
+          "User.Read",
+          `${DATAVERSE_BASE_URL}/user_impersonation`
+        ]
+      });
 
-        const data = await tokenResponse.json();
+      document.getElementById("loginBtn").style.display = "none";
+      document.getElementById("chat").style.display = "block";
 
-        if (!data.token) {
-          console.error("Function response did not include a token:", data);
-          throw new Error("No chat token returned from function.");
-        }
+      await startChat();
 
-        const directLine = window.WebChat.createDirectLine({
-          token: data.token
-        });
-
-        window.WebChat.renderWebChat(
-          {
-            directLine,
-            styleOptions: {
-              bubbleBackground: "#e6f0ff",
-              bubbleFromUserBackground: "#0078d4",
-              bubbleFromUserTextColor: "white"
-            }
-          },
-          document.getElementById("chat")
-        );
-      } catch (err) {
-        console.error("CHAT CONNECTION ERROR:", err);
-        alert("Chat failed to load - check console");
-      }
+    } catch (err) {
+      console.error("LOGIN ERROR:", err);
+      alert("Login failed");
     }
-
-    document.getElementById("loginBtn").onclick = async () => {
-      try {
-        const login = await msalInstance.loginPopup({
-          scopes: ["User.Read"]
-        });
-
-        document.getElementById("loginBtn").style.display = "none";
-        document.getElementById("chat").style.display = "block";
-        document.getElementById("userInfo").innerHTML =
-          "Signed in: " + login.account.username;
-
-        await startChat();
-
-      } catch (err) {
-        console.error("LOGIN ERROR:", err);
-        alert("Login failed - check console");
-      }
-    };
-  </script>
+  };
+</script>
 
 </body>
 </html>
+
