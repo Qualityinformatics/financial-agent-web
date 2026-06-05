@@ -1,21 +1,20 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Financial Literacy Agent</title>
 
-  <!-- ✅ MSAL -->
+  <!-- MSAL -->
   <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 
-  <!-- ✅ FIX: Proper Agents SDK script -->
-  <script src="https://unpkg.com/@microsoft/agents-webchat"></script>
-  
+  <!-- Bot Framework Web Chat -->
+  <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: #f4f6f9;
     }
 
@@ -25,6 +24,7 @@
       padding: 15px;
       text-align: center;
       font-size: 20px;
+      font-weight: 600;
     }
 
     #loginBtn {
@@ -36,17 +36,23 @@
       color: white;
       border-radius: 6px;
       font-size: 16px;
+      cursor: pointer;
+    }
+
+    #loginBtn:hover {
+      background: #106ebe;
     }
 
     #userInfo {
       text-align: center;
       font-size: 14px;
       margin-bottom: 10px;
+      color: #333;
     }
 
     #chat {
       display: none;
-      height: calc(100vh - 120px);
+      height: calc(100vh - 140px);
       margin: 10px;
       border-radius: 10px;
       overflow: hidden;
@@ -55,79 +61,103 @@
     }
   </style>
 </head>
-
 <body>
 
-<header>Financial Literacy Assistant</header>
+  <header>Financial Literacy Assistant</header>
 
-<button id="loginBtn">Sign in with Microsoft</button>
-<div id="userInfo"></div>
+  <button id="loginBtn">Sign in with Microsoft</button>
+  <div id="userInfo"></div>
+  <div id="chat"></div>
 
-<div id="chat"></div>
+  <script>
+    const msalConfig = {
+      auth: {
+        clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
+        authority: "https://login.microsoftonline.com/b0402c41-9027-486c-953f-d09da264a280",
+        redirectUri: "https://qualityinformatics.github.io/financial-agent-web/"
+      },
+      cache: {
+        cacheLocation: "localStorage",
+        storeAuthStateInCookie: true
+      }
+    };
 
-<script>
-  const msalConfig = {
-    auth: {
-      clientId: "c9aff7e9-6c83-4122-8215-0b7c99a19804",
-      authority: "https://login.microsoftonline.com/b0402c41-9027-486c-953f-d09da264a280",
-      redirectUri: "https://qualityinformatics.github.io/financial-agent-web/"
-    },
-    cache: {
-      cacheLocation: "localStorage",
-      storeAuthStateInCookie: true
-    }
-  };
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-  const msalInstance = new msal.PublicClientApplication(msalConfig);
+    async function getAccessToken() {
+      const account = msalInstance.getAllAccounts()[0];
 
-  document.getElementById("loginBtn").onclick = async () => {
-    try {
-      const login = await msalInstance.loginPopup({
-        scopes: ["User.Read"]
+      const result = await msalInstance.acquireTokenSilent({
+        scopes: ["User.Read"],
+        account: account
       });
 
-      document.getElementById("loginBtn").style.display = "none";
-      document.getElementById("chat").style.display = "block";
-      document.getElementById("userInfo").innerHTML =
-        "Signed in: " + login.account.username;
-
-      startChat();
-
-    } catch (err) {
-      console.error("LOGIN ERROR:", err);
-      alert("Login failed - check console");
+      return result.accessToken;
     }
-  };
 
-function startChat() {
+    async function startChat() {
+      try {
+        const tokenResponse = await fetch(
+          "https://getcopilottoken-dteebkhxd3ahhdhw.centralus-01.azurewebsites.net/api/getCopilotToken",
+          {
+            method: "POST",
+            headers: {
+              "Authorization": "Bearer " + await getAccessToken()
+            }
+          }
+        );
 
-  const endpoint = "https://defaultb0402c419027486c953fd09da264a2.80.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr441_financialLiteracyTrainer/conversations?api-version=2022-03-01-preview";
+        if (!tokenResponse.ok) {
+          throw new Error(`Function call failed: ${tokenResponse.status} ${tokenResponse.statusText}`);
+        }
 
-  fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    credentials: "include" // ✅ THIS is critical (uses Entra session)
-  })
-  .then(res => res.json())
-  .then(data => {
+        const data = await tokenResponse.json();
 
-    const directLine = window.WebChat.createDirectLine({
-      token: data.token
-    });
+        if (!data.token) {
+          console.error("Function response did not include a token:", data);
+          throw new Error("No chat token returned from function.");
+        }
 
-    window.WebChat.renderWebChat({
-      directLine: directLine
-    }, document.getElementById("chat"));
+        const directLine = window.WebChat.createDirectLine({
+          token: data.token
+        });
 
-  })
-  .catch(err => {
-    console.error("CHAT CONNECTION ERROR:", err);
-    alert("Chat failed to load");
-  });
-}
-</script>
+        window.WebChat.renderWebChat(
+          {
+            directLine,
+            styleOptions: {
+              bubbleBackground: "#e6f0ff",
+              bubbleFromUserBackground: "#0078d4",
+              bubbleFromUserTextColor: "white"
+            }
+          },
+          document.getElementById("chat")
+        );
+      } catch (err) {
+        console.error("CHAT CONNECTION ERROR:", err);
+        alert("Chat failed to load - check console");
+      }
+    }
+
+    document.getElementById("loginBtn").onclick = async () => {
+      try {
+        const login = await msalInstance.loginPopup({
+          scopes: ["User.Read"]
+        });
+
+        document.getElementById("loginBtn").style.display = "none";
+        document.getElementById("chat").style.display = "block";
+        document.getElementById("userInfo").innerHTML =
+          "Signed in: " + login.account.username;
+
+        await startChat();
+
+      } catch (err) {
+        console.error("LOGIN ERROR:", err);
+        alert("Login failed - check console");
+      }
+    };
+  </script>
 
 </body>
 </html>
